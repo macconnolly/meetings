@@ -1,6 +1,6 @@
-
 {
   "environment": "production",
+  "organization_tag": "organization_main",
   "processing": {
     "inputDir": "./input",
     "outputDir": "./output", 
@@ -26,6 +26,7 @@
     "supermemory": {
       "baseURL": "https://api.supermemory.ai/v3",
       "userId": "organization_main",
+      "organization_tag": "organization_main",
       "timeout": 30000,
       "retryAttempts": 3,
       "retryDelay": 2000,

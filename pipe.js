@@ -1,5 +1,5 @@
-require('dotenv').config();
 const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, './.env') });
 const { AIProcessor } = require('./src/core/AIProcessor');
 const { MemoryFactory } = require('./src/core/MemoryFactory');
 const { SupermemoryClient } = require('./src/core/SupermemoryClient');
@@ -7,20 +7,41 @@ const { EmailProcessor } = require('./src/core/EmailProcessor');
 const { MetricsCollector } = require('./src/utils/MetricsCollector');
 const config = require('./config/production.json');
 
-async function runPipeline() {
+async function runPipeline(transcriptPath = null) {
     const metricsCollector = new MetricsCollector();
     metricsCollector.startTimer();
 
     try {
         console.log('Starting meeting intelligence pipeline...');
 
-        const transcriptPath = path.resolve(__dirname, 'test/fixtures/sample-transcript.txt');
+        // Allow override from parameter or command line argument
+        const inputPath = transcriptPath || 
+                         process.argv[2] || 
+                         path.resolve(__dirname, './test/fixtures/sample-transcript.txt');
+        
+        console.log(`📄 Processing file: ${inputPath}`);
+        
+        // Determine file type
+        const fileExtension = path.extname(inputPath).toLowerCase();
+        const isEmlFile = fileExtension === '.eml';
+        
+        if (isEmlFile) {
+            console.log('📧 Detected EML file format');
+        } else {
+            console.log('📄 Detected text file format');
+        }
+
         const emailProcessor = new EmailProcessor(config.email_processor);
-        const { transcript, error: transcriptError } = await emailProcessor.extractTranscript(transcriptPath);
+        const { transcript, error: transcriptError } = await emailProcessor.extractTranscript(inputPath);
         if (transcriptError) {
             throw new Error(transcriptError);
         }
-        metricsCollector.recordMetric('TranscriptRead', { success: true, path: transcriptPath });
+        metricsCollector.recordMetric('TranscriptRead', { 
+            success: true, 
+            path: inputPath, 
+            format: isEmlFile ? 'eml' : 'text',
+            length: transcript.length 
+        });
 
         const aiProcessor = new AIProcessor(config);
         const structuredData = await aiProcessor.processTranscript(transcript);
@@ -83,7 +104,13 @@ async function runPipeline() {
 // If this script is executed directly, run the pipeline.
 // If it's imported, export the function for testing.
 if (require.main === module) {
-    runPipeline();
+    const inputFile = process.argv[2];
+    if (inputFile) {
+        console.log(`🚀 Running pipeline with custom file: ${inputFile}`);
+    } else {
+        console.log('🚀 Running pipeline with default sample transcript');
+    }
+    runPipeline(inputFile);
 } else {
     module.exports = { runPipeline };
 }
