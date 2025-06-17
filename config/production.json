@@ -1,0 +1,52 @@
+
+{
+  "environment": "production",
+  "processing": {
+    "inputDir": "./input",
+    "outputDir": "./output", 
+    "logDir": "./logs",
+    "progressDir": "./progress",
+    "tempDir": "./temp",
+    "maxConcurrentFiles": 3,
+    "batchSize": 8,
+    "processingTimeout": 300000,
+    "enableProgressPersistence": true,
+    "enableMetricsCollection": true
+  },
+  "apis": {
+    "openrouter": {
+      "baseURL": "https://openrouter.ai/api/v1",
+      "model": "google/gemini-2.5-flash-preview-05-20",
+      "temperature": 0.1,
+      "maxTokens": 8192,
+      "timeout": 180000,
+      "retryAttempts": 3,
+      "retryDelay": 5000
+    },
+    "supermemory": {
+      "baseURL": "https://api.supermemory.ai/v3",
+      "userId": "organization_main",
+      "timeout": 30000,
+      "retryAttempts": 3,
+      "retryDelay": 2000,
+      "rateLimit": 90,
+      "batchDelay": 100,
+      "validationDelay": 30000
+    }
+  },
+  "validation": {
+    "schemaValidation": true,
+    "contentValidation": true,
+    "memoryValidation": true,
+    "enableStrictMode": true,
+    "failOnValidationError": false,
+    "maxValidationErrors": 10
+  },
+  "output": {
+    "generateMDFiles": true,
+    "createSupermemoryObjects": true,
+    "validateOutput": true,
+    "enableOutputCompression": false,
+    "preserveOriginalFiles": true
+  }
+}
