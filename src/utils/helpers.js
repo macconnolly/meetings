@@ -1,3 +1,4 @@
+const { enhancedMeetingSchema } = require('../../config/schema');
 // ID Generation Functions
 function generateDecisionId(meetingData, index) {
   const project = extractProjectCode(meetingData.meeting_id);
@@ -42,6 +43,7 @@ function generateStakeholderId(stakeholderName) {
 
 // Text Processing Functions
 function slugify(text) {
+  if (!text || typeof text !== 'string') return 'unknown';
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '-')
@@ -455,6 +457,131 @@ function extractStakeholderTopics(stakeholder) {
   return [...new Set(topics)].slice(0, 10);
 }
 
+function validateAndSanitize(data, schemaName) {
+    const schemaConfig = enhancedMeetingSchema;
+    if (schemaConfig.name !== schemaName) {
+        // In a real app, you might have a map of schemas
+        throw new Error(`Schema '${schemaName}' not found or configured.`);
+    }
+
+    const errors = [];
+    const validatedData = JSON.parse(JSON.stringify(data)); // Deep copy to sanitize
+
+    function traverseAndValidate(currentData, currentSchema, path) {
+        if (!currentSchema || typeof currentData === 'undefined') return;
+
+        // Type checking
+        const expectedType = currentSchema.type;
+        const actualType = Array.isArray(currentData) ? 'array' : typeof currentData;
+
+        if (expectedType && actualType !== 'undefined' && expectedType !== actualType) {
+            errors.push(`Invalid type at ${path}: expected ${expectedType}, got ${actualType}`);
+            return; // Stop validation for this branch if type is wrong
+        }
+        
+        // Enum check
+        if (currentSchema.enum && !currentSchema.enum.includes(currentData)) {
+             errors.push(`Invalid value at ${path}: '${currentData}' is not in the allowed list.`);
+        }
+
+        // Pattern check for strings
+        if (expectedType === 'string' && currentSchema.pattern) {
+            const regex = new RegExp(currentSchema.pattern);
+            if (!regex.test(currentData)) {
+                errors.push(`Invalid format at ${path}: does not match pattern ${currentSchema.pattern}`);
+            }
+        }
+        
+        // Min/Max length for strings
+        if (expectedType === 'string') {
+            if (currentSchema.minLength && currentData.length < currentSchema.minLength) {
+                 errors.push(`Invalid length at ${path}: minimum is ${currentSchema.minLength}, got ${currentData.length}`);
+            }
+            if (currentSchema.maxLength && currentData.length > currentSchema.maxLength) {
+                 errors.push(`Invalid length at ${path}: maximum is ${currentSchema.maxLength}, got ${currentData.length}`);
+            }
+        }
+
+        // Min/Max for numbers
+        if (expectedType === 'integer' || expectedType === 'number') {
+            if (typeof currentSchema.minimum !== 'undefined' && currentData < currentSchema.minimum) {
+                errors.push(`Value at ${path} is too low: minimum is ${currentSchema.minimum}, got ${currentData}`);
+            }
+            if (typeof currentSchema.maximum !== 'undefined' && currentData > currentSchema.maximum) {
+                errors.push(`Value at ${path} is too high: maximum is ${currentSchema.maximum}, got ${currentData}`);
+            }
+        }
+
+
+        if (expectedType === 'object' && currentData) {
+            // Check for required properties
+            if (currentSchema.required) {
+                for (const prop of currentSchema.required) {
+                    if (typeof currentData[prop] === 'undefined') {
+                        errors.push(`Missing required property at ${path}: ${prop}`);
+                    }
+                }
+            }
+            // Recurse into properties
+            if (currentSchema.properties) {
+                for (const prop in currentSchema.properties) {
+                    if (typeof currentData[prop] !== 'undefined') {
+                        traverseAndValidate(currentData[prop], currentSchema.properties[prop], `${path}.${prop}`);
+                    }
+                }
+            }
+             // Sanitization: remove unknown properties if strict
+            if (schemaConfig.strict) {
+                for (const prop in currentData) {
+                    if (Object.prototype.hasOwnProperty.call(currentData, prop)) {
+                        if (!currentSchema.properties || !currentSchema.properties[prop]) {
+                            // This is a simple validator, so we just flag this. A real sanitizer would remove it.
+                            // delete currentData[prop]; 
+                        }
+                    }
+                }
+            }
+        } else if (expectedType === 'array' && currentData) {
+             // Min/Max items for arrays
+            if (currentSchema.minItems && currentData.length < currentSchema.minItems) {
+                errors.push(`Not enough items at ${path}: minimum is ${currentSchema.minItems}, got ${currentData.length}`);
+            }
+            if (currentSchema.maxItems && currentData.length > currentSchema.maxItems) {
+                errors.push(`Too many items at ${path}: maximum is ${currentSchema.maxItems}, got ${currentData.length}`);
+            }
+            // Recurse into array items
+            if (currentSchema.items) {
+                for (let i = 0; i < currentData.length; i++) {
+                    traverseAndValidate(currentData[i], currentSchema.items, `${path}[${i}]`);
+                }
+            }
+        }
+    }
+
+    traverseAndValidate(validatedData, schemaConfig.schema, schemaName);
+
+    return { validatedData, errors };
+}
+
+/**
+ * Recursively sanitize a metadata object so that all values are primitives (string, number, boolean).
+ * Arrays are joined with '; '. Objects are stringified with JSON.stringify.
+ */
+function sanitizeMetadata(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const sanitized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (Array.isArray(value)) {
+      sanitized[key] = value.map(v => (typeof v === 'object' ? JSON.stringify(v) : v)).join('; ');
+    } else if (typeof value === 'object' && value !== null) {
+      sanitized[key] = JSON.stringify(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 module.exports = {
     generateDecisionId,
     generateActionId,
@@ -482,5 +609,7 @@ module.exports = {
     extractKeywords,
     extractDecisionTopics,
     extractActionTopics,
-    extractStakeholderTopics
+    extractStakeholderTopics,
+    validateAndSanitize,
+    sanitizeMetadata
 };

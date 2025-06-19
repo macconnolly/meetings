@@ -1,37 +1,29 @@
 class RateLimitManager {
     constructor(config) {
-        this.config = config;
-        this.requestQueue = [];
-        this.isProcessing = false;
+        this.tokens = config.burstRate;
+        this.burstRate = config.burstRate;
+        this.refillRate = config.refillRate; // tokens per second
+        this.lastRefill = Date.now();
+        setInterval(() => this.refillTokens(), 1000);
     }
 
-    async processQueue() {
-        if (this.isProcessing || this.requestQueue.length === 0) {
-            return;
-        }
-
-        this.isProcessing = true;
-        const { request, resolve, reject } = this.requestQueue.shift();
-
-        try {
-            const result = await request();
-            resolve(result);
-        } catch (error) {
-            reject(error);
-        }
-
-        setTimeout(() => {
-            this.isProcessing = false;
-            this.processQueue();
-        }, this.config.request_interval_ms || 1000);
+    refillTokens() {
+        const now = Date.now();
+        const elapsed = (now - this.lastRefill) / 1000; // seconds
+        this.lastRefill = now;
+        const tokensToAdd = elapsed * this.refillRate;
+        this.tokens = Math.min(this.burstRate, this.tokens + tokensToAdd);
     }
 
-    add(request) {
-        return new Promise((resolve, reject) => {
-            this.requestQueue.push({ request, resolve, reject });
-            this.processQueue();
-        });
+    async acquireToken() {
+        if (this.tokens >= 1) {
+            this.tokens -= 1;
+            return true;
+        }
+        // Not enough tokens, wait for refill
+        await new Promise(resolve => setTimeout(resolve, 1000 / this.refillRate));
+        return this.acquireToken(); // Retry after waiting
     }
 }
 
-module.exports = { RateLimitManager };
+module.exports = RateLimitManager;

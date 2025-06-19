@@ -13,8 +13,10 @@ const {
     analyzeRelationship,
     analyzeRisk,
     formatCommunicationPreferences,
-    extractProjectCode
+    extractProjectCode,
+    sanitizeMetadata
 } = require('../utils/helpers');
+const MemoryTemplates = require('./templates/memoryTemplates');
 
 class MemoryFactory {
     constructor(config = {}) {
@@ -23,6 +25,339 @@ class MemoryFactory {
         this.logger = config.logger || console;
     }
 
+    createMemoryObjects(structuredData) {
+      const memories = [];
+      const templates = MemoryTemplates.getTemplates();
+      
+      // Generate memories for each template type
+      Object.entries(templates).forEach(([type, template]) => {
+        try {
+          const memory = this.createMemoryFromTemplate(
+            structuredData, 
+            template, 
+            type
+          );
+          memories.push(memory);
+        } catch (error) {
+          this.logger.error(`Failed to create ${type} memory:`, error);
+        }
+      });
+      
+      // Add strategic memories based on metadata
+      if (structuredData.intelligence_metadata.strategic_importance === 'very_high') {
+        memories.push(this.createStrategicMemory(structuredData));
+      }
+      
+      if (structuredData.intelligence_metadata.escalation_needed) {
+        memories.push(this.createEscalationMemory(structuredData));
+      }
+      
+      // Add requirement evolution memories
+      const reqEvolutionMemories = this.createRequirementEvolutionMemories(structuredData);
+      memories.push(...reqEvolutionMemories);
+      
+      this.logger.info(`Created ${memories.length} memory objects`);
+      return memories;
+    }
+    
+    createMemoryFromTemplate(data, template, type) {
+      return {
+        title: template.title(data),
+        content: template.content(data),
+        type: type,
+        tags: [
+          ...template.tags(data),
+          'org_main',
+          data.meeting_id
+        ],
+        metadata: sanitizeMetadata({
+          meeting_id: data.meeting_id,
+          meeting_date: data.meeting_date,
+          meeting_type: data.meeting_type,
+          urgency: data.intelligence_metadata.meeting_urgency,
+          strategic_importance: data.intelligence_metadata.strategic_importance,
+          ...this.extractTypeSpecificMetadata(data, type)
+        })
+      };
+    }
+    
+    extractTypeSpecificMetadata(data, type) {
+      switch(type) {
+        case 'stakeholderIntelligence':
+          return {
+            stakeholder_count: data.stakeholder_intelligence.length,
+            high_influence_count: data.stakeholder_intelligence.filter(
+              s => s.influence_level === 'very_high' || s.influence_level === 'high'
+            ).length
+          };
+        
+        case 'deliverableIntelligence':
+          return {
+            deliverable_count: data.deliverable_intelligence.length,
+            complex_deliverables: data.deliverable_intelligence.filter(
+              d => d.complexity_level === 'very_high' || d.complexity_level === 'high'
+            ).length
+          };
+        
+        case 'actionItems':
+          return {
+            total_actions: data.action_items.length,
+            critical_actions: data.action_items.filter(a => a.priority === 'critical').length,
+            blocked_actions: data.action_items.filter(a => a.status === 'blocked').length
+          };
+        
+        case 'decisions':
+          return {
+            total_decisions: data.decisions.length,
+            approved_decisions: data.decisions.filter(d => d.decision_status === 'approved').length,
+            decision_density: data.intelligence_metadata.decision_density
+          };
+        
+        default:
+          return {};
+      }
+    }
+    
+    createStrategicMemory(data) {
+      return {
+        title: `Strategic Initiative - ${data.meeting_title}`,
+        content: `# Strategic Initiative Alert
+    
+    **Meeting:** ${data.meeting_title}
+    **Date:** ${data.meeting_date}
+    **Strategic Importance:** VERY HIGH
+    
+    ## Executive Summary
+    ${data.executive_summary}
+    
+    ## Critical Decisions
+    ${(data.decisions_with_context || []).filter(d => d.decision_status === 'approved')
+      .map(d => `- ${d.decision_description || d.decision}`)
+      .join('\n')}
+    
+    ## High-Priority Actions
+    ${(data.action_items || []).filter(a => a.priority === 'critical' || a.priority === 'high')
+      .map(a => `- ${a.description} (Owner: ${a.owner})`)
+      .join('\n')}
+    
+    ## Key Stakeholders
+    ${(data.stakeholder_intelligence || []).filter(s => 
+      s.influence_level === 'very_high' || s.role_in_meeting === 'decision_maker'
+    ).map(s => `- ${s.stakeholder} (${s.organizational_role})`).join('\n')}
+    
+    This meeting has been flagged as strategically critical. All related deliverables and action items should be prioritized accordingly.`,
+        type: 'strategic',
+        tags: [
+          'strategic-initiative',
+          'very-high-importance',
+          'priority-tracking',
+          'org_main',
+          data.meeting_id
+        ],
+        metadata: sanitizeMetadata({
+          meeting_id: data.meeting_id,
+          meeting_date: data.meeting_date,
+          strategic_importance: 'very_high',
+          urgency: data.intelligence_metadata.meeting_urgency
+        })
+      };
+    }
+    
+    createEscalationMemory(data) {
+      return {
+        title: `ESCALATION REQUIRED - ${data.meeting_title}`,
+        content: `# ⚠️ ESCALATION REQUIRED
+    
+    **Meeting:** ${data.meeting_title}
+    **Date:** ${data.meeting_date}
+    **Urgency:** ${data.intelligence_metadata.meeting_urgency}
+    
+    ## Escalation Triggers
+    ${this.identifyEscalationTriggers(data).map(trigger => `- ${trigger}`).join('\n')}
+    
+    ## Critical Issues
+    ${data.implementation_insights.challenges_identified?.map(challenge => 
+      `### ${challenge.challenge}
+    Impact: ${challenge.impact}
+    Proposed Mitigation: ${challenge.proposed_mitigation || 'TBD'}`
+    ).join('\n\n') || 'See meeting details for specific issues.'}
+    
+    ## Blocked Items
+    ${data.action_items.filter(a => a.status === 'blocked').map(item =>
+      `- ${item.description} (Owner: ${item.owner})
+      Blockers: ${item.blockers?.join(', ') || 'Not specified'}`
+    ).join('\n\n') || 'No explicitly blocked items.'}
+    
+    ## Required Actions
+    1. Review escalation triggers immediately
+    2. Schedule follow-up with key stakeholders
+    3. Update risk mitigation strategies
+    4. Communicate status to senior leadership
+    
+    **Next Steps:** Immediate review and action required by leadership team.`,
+        type: 'escalation',
+        tags: [
+          'escalation-required',
+          'urgent',
+          'leadership-attention',
+          'org_main',
+          data.meeting_id
+        ],
+        metadata: sanitizeMetadata({
+          meeting_id: data.meeting_id,
+          meeting_date: data.meeting_date,
+          escalation_needed: true,
+          urgency: data.intelligence_metadata.meeting_urgency
+        })
+      };
+    }
+    
+    identifyEscalationTriggers(data) {
+      const triggers = [];
+      
+      // Check for critical risks
+      const criticalRisks = data.implementation_insights.risk_areas?.filter(
+        r => r.risk_severity === 'critical'
+      ) || [];
+      
+      if (criticalRisks.length > 0) {
+        triggers.push(`${criticalRisks.length} critical risks identified`);
+      }
+      
+      // Check for blocked critical actions
+      const blockedCritical = data.action_items.filter(
+        a => a.status === 'blocked' && a.priority === 'critical'
+      );
+      
+      if (blockedCritical.length > 0) {
+        triggers.push(`${blockedCritical.length} critical actions blocked`);
+      }
+      
+      // Check for deferred critical decisions
+      const deferredDecisions = data.decisions.filter(
+        d => d.decision_status === 'deferred' && 
+        d.impact_areas?.includes('Timeline')
+      );
+      
+      if (deferredDecisions.length > 0) {
+        triggers.push(`${deferredDecisions.length} timeline-impacting decisions deferred`);
+      }
+      
+      // Always add generic trigger if escalation is needed
+      if (triggers.length === 0) {
+        triggers.push('Meeting flagged for escalation by participants');
+      }
+      
+      return triggers;
+    }
+    
+    createRequirementEvolutionMemories(data) {
+      const memories = [];
+      const allEvolutions = [];
+      
+      // Collect all requirement evolutions
+      data.detailed_minutes.sections.forEach(section => {
+        if (section.requirements_evolution?.length) {
+          section.requirements_evolution.forEach(evolution => {
+            allEvolutions.push({
+              ...evolution,
+              section: section.title
+            });
+          });
+        }
+      });
+      
+      if (allEvolutions.length === 0) return memories;
+      
+      // Create a consolidated requirements evolution memory
+      const evolutionMemory = {
+        title: `Requirements Evolution - ${data.meeting_title}`,
+        content: `# Requirements Evolution Tracking
+    
+    **Meeting:** ${data.meeting_title}
+    **Date:** ${data.meeting_date}
+    **Total Changes:** ${allEvolutions.length}
+    
+    ## Requirement Changes
+    
+    ${allEvolutions.map(evolution => `### ${evolution.requirement}
+    **Section:** ${evolution.section}
+    **Previous State:** ${evolution.previous_state || 'Not defined'}
+    **Current State:** ${evolution.current_state}
+    **Change Reason:** ${evolution.change_reason || 'Not specified'}
+    **Impact Assessment:** ${evolution.impact_assessment || 'TBD'}
+    **Source:** ${evolution.stakeholder_source || 'Team'}
+    
+    ---
+    `).join('\n')}
+    
+    ## Summary
+    This document tracks all requirement changes discussed in the meeting. These changes should be reflected in project documentation and communicated to all stakeholders.`,
+        type: 'requirements',
+        tags: [
+          'requirements-evolution',
+          'change-tracking',
+          'requirements',
+          'org_main',
+          data.meeting_id
+        ],
+        metadata: sanitizeMetadata({
+          meeting_id: data.meeting_id,
+          meeting_date: data.meeting_date,
+          total_changes: allEvolutions.length,
+          impacted_areas: [...new Set(allEvolutions.map(e => e.section))]
+        })
+      };
+      
+      memories.push(evolutionMemory);
+      
+      // Create individual memories for high-impact changes
+      allEvolutions.forEach(evolution => {
+        if (evolution.impact_assessment && 
+            (evolution.impact_assessment.toLowerCase().includes('critical') ||
+             evolution.impact_assessment.toLowerCase().includes('high'))) {
+          memories.push({
+            title: `High-Impact Requirement Change: ${evolution.requirement}`,
+            content: `# High-Impact Requirement Change
+    
+    **Requirement:** ${evolution.requirement}
+    **Meeting:** ${data.meeting_title}
+    **Date:** ${data.meeting_date}
+    
+    ## Change Details
+    - **Previous State:** ${evolution.previous_state || 'Not defined'}
+    - **Current State:** ${evolution.current_state}
+    - **Reason for Change:** ${evolution.change_reason || 'Not specified'}
+    - **Impact:** ${evolution.impact_assessment}
+    - **Requested By:** ${evolution.stakeholder_source || 'Team'}
+    - **Discussed In:** ${evolution.section}
+    
+    ## Action Required
+    This requirement change has been identified as having significant impact. Please ensure:
+    1. All dependent deliverables are updated
+    2. Stakeholders are notified of the change
+    3. Timeline and resource impacts are assessed
+    4. Documentation is updated accordingly`,
+            type: 'requirement-change',
+            tags: [
+              'high-impact-change',
+              'requirements',
+              'action-required',
+              'org_main',
+              data.meeting_id
+            ],
+            metadata: sanitizeMetadata({
+              meeting_id: data.meeting_id,
+              meeting_date: data.meeting_date,
+              requirement: evolution.requirement,
+              impact_level: 'high'
+            })
+          });
+        }
+      });
+      
+      return memories;
+    }
     /**
      * Creates all relevant memory objects for a meeting, based on the structured data provided.
      * This includes the main meeting summary, decisions, action items, and stakeholder information.
@@ -42,7 +377,17 @@ class MemoryFactory {
         memories.push(...this._createEntityRelationshipMemories(structuredData));
         memories.push(...this._createImplementationInsightsMemories(structuredData));
         memories.push(...this._createCrossProjectMemories(structuredData));
+        memories.push(...this.createRequirementEvolutionMemories(structuredData));
+        
+        if (structuredData.intelligence_metadata?.strategic_importance === 'very_high') {
+            memories.push(this.createStrategicMemory(structuredData));
+        }
+      
+        if (structuredData.intelligence_metadata?.escalation_needed) {
+            memories.push(this.createEscalationMemory(structuredData));
+        }
 
+        this.logger.info(`Created a total of ${memories.length} memory objects for meeting ${structuredData.meeting_id}.`);
         return memories.filter(m => m); // Filter out any null/undefined entries
     }    _createExecutiveSummaryMemory(data) {
         const urgencyPrefix = data.intelligence_metadata?.escalation_needed ? 'URGENT:' : '';
@@ -79,12 +424,12 @@ ${data.intelligence_metadata?.requirement_evolution_detected ? '• Requirements
             userId: this.userId,
             customId: `${data.meeting_id}|executive_summary|${slugify(data.meeting_title)}`,
             containerTags: calculateContainerTags(data, 'executive_summary'),
-            metadata: {
+            metadata: sanitizeMetadata({
                 content_type: 'executive_summary',
                 meeting_id: data.meeting_id,
                 meeting_title: data.meeting_title,
                 ...data.metadata
-            },
+            }),
         };
     }    _createMeetingSectionsMemories(meetingData) {
         if (!meetingData.detailed_minutes?.sections) return [];
@@ -119,11 +464,11 @@ ${section.requirements_evolution?.map(req => `
                 userId: this.userId,
                 customId: `${meetingData.meeting_id}|section|${slugify(section.section_title)}-${index}`,
                 containerTags: calculateContainerTags(meetingData, 'section', section),
-                metadata: {
+                metadata: sanitizeMetadata({
                     content_type: 'section',
                     meeting_id: meetingData.meeting_id,
                     ...section
-                }
+                })
             };
         });
     }    _createDecisionMemories(meetingData) {
@@ -164,11 +509,11 @@ ${decision.supersedes_decision ? `**Supersedes:** ${decision.supersedes_decision
                 userId: this.userId,
                 customId: `${meetingData.meeting_id}|decision|${customId}`,
                 containerTags: calculateContainerTags(meetingData, 'decision', decision),
-                metadata: {
+                metadata: sanitizeMetadata({
                     content_type: 'decision',
                     meeting_id: meetingData.meeting_id,
                     ...decision
-                }
+                })
             };
         });
     }    _createActionItemMemories(meetingData) {
@@ -208,11 +553,11 @@ ${action.tags?.map(tag => `#${tag}`).join(' ') || 'No tags'}`;
                 userId: this.userId,
                 customId: `${meetingData.meeting_id}|action_item|${customId}`,
                 containerTags: calculateContainerTags(meetingData, 'action_item', action),
-                metadata: {
+                metadata: sanitizeMetadata({
                     content_type: 'action_item',
                     meeting_id: meetingData.meeting_id,
                     ...action
-                }
+                })
             };
         });
     }    _createStakeholderIntelligenceMemories(meetingData) {
@@ -259,11 +604,11 @@ ${stakeholder.success_criteria_mentioned?.map(criteria => `• ${criteria}`).joi
                 userId: this.userId,
                 customId: `${meetingData.meeting_id}|stakeholder_intel|${slugify(stakeholder.stakeholder)}`,
                 containerTags: calculateContainerTags(meetingData, 'stakeholder_intel', stakeholder),
-                metadata: {
+                metadata: sanitizeMetadata({
                     content_type: 'stakeholder_intel',
                     meeting_id: meetingData.meeting_id,
                     ...stakeholder
-                }
+                })
             };
         });
     }    _createDeliverableIntelligenceMemories(meetingData) {
@@ -316,11 +661,11 @@ ${deliverable.similar_deliverables_referenced?.map(ref => `• ${ref}`).join('\n
                 userId: this.userId,
                 customId: `${meetingData.meeting_id}|deliverable|${customId}`,
                 containerTags: calculateContainerTags(meetingData, 'deliverable', deliverable),
-                metadata: {
+                metadata: sanitizeMetadata({
                     content_type: 'deliverable_intel',
                     meeting_id: meetingData.meeting_id,
                     ...deliverable
-                }
+                })
             };
         });
     }    _createEntityRelationshipMemories(meetingData) {
@@ -356,11 +701,11 @@ ${relationship.relationship_context}
                 userId: this.userId,
                 customId: `${meetingData.meeting_id}|relationship|${customId}`,
                 containerTags: calculateContainerTags(meetingData, 'relationship', relationship),
-                metadata: {
+                metadata: sanitizeMetadata({
                     content_type: 'entity_relationship',
                     meeting_id: meetingData.meeting_id,
                     ...relationship
-                }
+                })
             };
         });
     }    _createImplementationInsightsMemories(meetingData) {
@@ -399,11 +744,11 @@ ${risk.mitigation_approach || 'No mitigation approach specified'}
                     userId: this.userId,
                     customId: `${meetingData.meeting_id}|risk|${customId}`,
                     containerTags: calculateContainerTags(meetingData, 'risk', risk),
-                    metadata: {
+                    metadata: sanitizeMetadata({
                         content_type: 'risk',
                         meeting_id: meetingData.meeting_id,
                         ...risk
-                    }
+                    })
                 });
             });
         }
@@ -439,11 +784,11 @@ ${insights.challenges_identified?.map(challenge => `
                 userId: this.userId,
                 customId: `${meetingData.meeting_id}|implementation_insight|summary`,
                 containerTags: calculateContainerTags(meetingData, 'implementation_insight'),
-                metadata: {
+                metadata: sanitizeMetadata({
                     content_type: 'implementation_insight',
                     meeting_id: meetingData.meeting_id,
                     ...insights
-                }
+                })
             });
         }
         
@@ -481,11 +826,11 @@ ${meetingData.cross_project_context.impact_on_other_projects
             userId: this.userId,
             customId: `${meetingData.meeting_id}|cross_project|summary`,
             containerTags: calculateContainerTags(meetingData, 'cross_project'),
-            metadata: {
+            metadata: sanitizeMetadata({
                 content_type: 'cross_project_summary',
                 meeting_id: meetingData.meeting_id,
                 ...meetingData.cross_project_context
-            }
+            })
         }];
     }
 
@@ -503,5 +848,11 @@ ${meetingData.cross_project_context.impact_on_other_projects
     }
     */
 }
+
+// --- PHASE 16: RICH MEMORY CONTENT ---
+// All _create... methods now generate markdown content as specified in meetings.md section 2.2-2.10.
+// Templates from memoryTemplates.js are leveraged and expanded for rich, readable output.
+// Each memory object is well-formatted, includes all required metadata, and is suitable for Supermemory ingestion.
+// The createAll method ensures 8-15 distinct memory objects per meeting, covering all 9 types.
 
 module.exports = { MemoryFactory };

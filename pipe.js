@@ -5,6 +5,9 @@ const { MemoryFactory } = require('./src/core/MemoryFactory');
 const { SupermemoryClient } = require('./src/core/SupermemoryClient');
 const { EmailProcessor } = require('./src/core/EmailProcessor');
 const { MetricsCollector } = require('./src/utils/MetricsCollector');
+const { MemoryTemplates } = require('./src/core/templates/memoryTemplates');
+const RateLimitManager = require('./src/utils/RateLimitManager');
+const { validateAndSanitize } = require('./src/utils/helpers');
 const config = require('./config/production.json');
 
 async function runPipeline(transcriptPath = null) {
@@ -48,14 +51,25 @@ async function runPipeline(transcriptPath = null) {
         if (!structuredData) {
              throw new Error('AI processing failed to return structured data.');
         }
+        const { validatedData, errors } = validateAndSanitize(structuredData, 'comprehensive_meeting_intelligence');
+        if (errors.length > 0) {
+            console.warn('Validation warnings:', errors);
+            metricsCollector.recordMetric('ValidationWarning', { success: true, count: errors.length, errors });
+        }
         metricsCollector.recordMetric('AIProcessing', { success: true, model: config.apis.openrouter.model });
 
         const memoryFactory = new MemoryFactory(config);
-        const memoryObjects = memoryFactory.createAll(structuredData);
+        const memoryObjects = memoryFactory.createMemoryObjects(validatedData);
         metricsCollector.recordMetric('MemoryObjectsCreated', { success: true, count: memoryObjects.length });
 
         const supermemoryClient = new SupermemoryClient(config);
-        const creationPromises = memoryObjects.map(mem => supermemoryClient.createMemory(mem));
+        const rateLimiter = new RateLimitManager(config.rate_limiting || { burstRate: 10, refillRate: 5 });
+
+        const creationPromises = memoryObjects.map(async (mem) => {
+            await rateLimiter.acquireToken();
+            return supermemoryClient.createMemory(mem);
+        });
+
         const creationResults = await Promise.all(creationPromises);
 
         const successfulCreations = creationResults.filter(r => r && (r.id || r.customId)); // Handle both new and updated objects
@@ -67,9 +81,9 @@ async function runPipeline(transcriptPath = null) {
         metricsCollector.recordMetric('SupermemoryUpload', { success: true, memoryIds: successfulCreations.map(r => r.id || r.customId) });
 
         const emailDetails = {
-            to: 'team@example.com',
-            subject: structuredData.meeting_title || 'Meeting Summary & Next Steps',
-            body: structuredData.client_ready_email,
+            to: config.email_processor.default_recipient || 'team@example.com',
+            subject: `Meeting Summary: ${validatedData.meeting_title}`,
+            body: MemoryTemplates.generateEmailSummary(validatedData),
         };
         const emailResponse = await emailProcessor.sendEmail(emailDetails);
         metricsCollector.recordMetric('EmailNotificationSent', { success: emailResponse.success });

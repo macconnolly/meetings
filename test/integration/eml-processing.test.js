@@ -21,7 +21,7 @@ async function testEmlProcessing() {
         const aiProcessor = new AIProcessor(config);
         
         // Test file path
-        const emlFilePath = path.join(__dirname, '..', 'fixtures', 'example_transcript.eml');
+        const emlFilePath = path.join(__dirname, '..', 'fixtures', 'BRV Day One Readiness and UAT Coordination.eml');
         console.log(`📧 Processing EML file: ${emlFilePath}`);
         
         // Step 1: Extract transcript from EML

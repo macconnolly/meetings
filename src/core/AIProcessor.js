@@ -10,7 +10,28 @@ class AIProcessor {
         this.config = config;
         this.openRouterConfig = config.apis.openrouter;
         this.apiKey = process.env.OPENROUTER_API_KEY;
-    }    async processTranscript(transcript) {
+    }    
+    buildSystemPrompt() {
+      const enhancedSchema = require('../../config/schema.js');
+      
+      return `You are an expert meeting analyst. Extract structured data from the transcript.
+
+    CRITICAL: You must extract ALL properties defined in the schema below.
+    Missing required fields will cause the response to be rejected.
+
+    Schema to follow:
+    ${JSON.stringify(enhancedSchema, null, 2)}
+
+    Requirements:
+    1. Extract all 60+ properties from the schema
+    2. Infer stakeholder intelligence from their contributions
+    3. Identify all decisions with implementation timelines
+    4. Map entity relationships between people, projects, and deliverables
+    5. Assess meeting urgency and strategic importance
+
+    Return a valid JSON object matching the schema exactly.`;
+    }
+    async processTranscript(transcript) {
         console.log("Processing transcript with OpenRouter API...");
 
         if (!this.apiKey) {
@@ -28,7 +49,7 @@ class AIProcessor {
             messages: [
                 {
                     role: "system",
-                    content: `You are an expert meeting summarization AI. Analyze the following meeting transcript and extract key information based on the provided JSON schema. The output must be a valid JSON object that conforms to this schema: ${JSON.stringify(schema.enhancedMeetingSchema)}`
+                    content: this.buildSystemPrompt()
                 },
                 {
                     role: "user",
@@ -46,9 +67,24 @@ class AIProcessor {
                 timeout: this.openRouterConfig.timeout
             });
 
-            const structuredData = JSON.parse(response.data.choices[0].message.content);
-            console.log("Successfully received structured data from OpenRouter API.");
-            return structuredData;
+            try {
+                const rawResponse = response.data.choices[0].message.content;
+                const rawData = JSON.parse(rawResponse);
+
+                let structuredData;
+                if (rawData.enhancedMeetingSchema && rawData.enhancedMeetingSchema.schema) {
+                    structuredData = rawData.enhancedMeetingSchema.schema;
+                    console.log("Successfully parsed nested structured data from OpenRouter API.");
+                } else {
+                    structuredData = rawData;
+                    console.log("Successfully parsed flat structured data from OpenRouter API.");
+                }
+                return structuredData;
+            } catch (parseError) {
+                console.error("Failed to parse JSON response from OpenRouter API:", parseError);
+                console.error("Raw response content:", response.data.choices[0].message.content);
+                throw new Error('Failed to parse JSON response from OpenRouter API.');
+            }
 
         } catch (error) {
             console.error("Error processing transcript with OpenRouter API:", error.response ? error.response.data : error.message);
@@ -61,12 +97,23 @@ class AIProcessor {
                         headers: headers,
                         timeout: this.openRouterConfig.timeout
                     });
-                    const structuredData = JSON.parse(response.data.choices[0].message.content);
-                    console.log("Successfully received structured data from OpenRouter API on retry.");
+                    
+                    const rawResponse = response.data.choices[0].message.content;
+                    const rawData = JSON.parse(rawResponse);
+
+                    let structuredData;
+                    if (rawData.enhancedMeetingSchema && rawData.enhancedMeetingSchema.schema) {
+                        structuredData = rawData.enhancedMeetingSchema.schema;
+                        console.log("Successfully parsed nested structured data from OpenRouter API on retry.");
+                    } else {
+                        structuredData = rawData;
+                        console.log("Successfully parsed flat structured data from OpenRouter API on retry.");
+                    }
                     return structuredData;
                 } catch (retryError) {
                     console.error(`Retry attempt ${i + 1} failed:`, retryError.response ? retryError.response.data : retryError.message);
-                }            }
+                }
+            }
             throw new Error("Failed to process transcript with OpenRouter API after multiple retries.");
         }
     }

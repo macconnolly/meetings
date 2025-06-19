@@ -1,94 +1,39 @@
+const assert = require('assert');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
-const axios = require('axios');
 
-async function debugSupermemoryAPI() {
-    console.log('=== SUPERMEMORY API DEBUGGING ===\n');
-    
-    const baseURL = process.env.SUPERMEMORY_BASE_URL || 'https://api.supermemory.ai/v3';
-    const apiKey = process.env.SUPERMEMORY_API_KEY;
-    
-    console.log('🌐 Base URL:', baseURL);
-    console.log('🔑 API Key (first 10 chars):', apiKey ? apiKey.substring(0, 10) + '...' : 'NOT SET');
-    console.log('');
-    
-    if (!apiKey) {
-        console.error('❌ No API key found - cannot proceed');
-        return;
+const config = require('../../config/production.json');
+const { AIProcessor } = require('../../src/core/AIProcessor');
+
+console.log('--- OpenRouter API Configuration Test ---');
+
+try {
+    console.log('Checking for OPENROUTER_API_KEY in environment...');
+    const apiKey = process.env.OPENROUTER_API_KEY;
+
+    if (apiKey) {
+        console.log('✔️ OPENROUTER_API_KEY found.');
+    } else {
+        console.error('❌ OPENROUTER_API_KEY is missing from environment variables.');
+        process.exit(1);
     }
+
+    assert.ok(apiKey, 'OpenRouter API key should be set in .env');
     
-    const headers = {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-    };
+    const aiProcessor = new AIProcessor(config);
     
-    // Test 1: API Health/Status
-    console.log('🏥 Testing API health/status...');
-    const healthEndpoints = [
-        '/health',
-        '/status', 
-        '/ping',
-        '/',
-        '/v3',
-        '/api/v3'
-    ];
+    console.log('Checking AIProcessor instance configuration...');
+    assert.strictEqual(aiProcessor.apiKey, apiKey, 'AIProcessor apiKey should match the one from process.env');
+    console.log('✔️ AIProcessor apiKey is correctly configured.');
     
-    for (const endpoint of healthEndpoints) {
-        try {
-            const response = await axios.get(`${baseURL}${endpoint}`, { headers, timeout: 5000 });
-            console.log(`✅ ${endpoint}: ${response.status} - ${JSON.stringify(response.data).substring(0, 100)}...`);
-        } catch (error) {
-            console.log(`❌ ${endpoint}: ${error.response?.status || 'TIMEOUT'} - ${error.response?.data?.error || error.message}`);
-        }
-    }
-    
-    // Test 2: Authentication
-    console.log('\n🔐 Testing authentication...');
-    try {
-        const authTest = await axios.get(`${baseURL}/memories/list?limit=1`, { headers });
-        console.log('✅ Authentication appears valid');
-    } catch (error) {
-        if (error.response?.status === 401 || error.response?.status === 403) {
-            console.log('❌ Authentication failed:', error.response.data);
-        } else {
-            console.log('⚠️  Authentication test inconclusive:', error.response?.status, error.response?.data);
-        }
-    }
-    
-    // Test 3: Try alternative API versions
-    console.log('\n🔄 Testing alternative API versions...');
-    const apiVersions = [
-        'https://api.supermemory.ai/v1',
-        'https://api.supermemory.ai/v2', 
-        'https://api.supermemory.ai/v3',
-        'https://supermemory.ai/api/v1',
-        'https://supermemory.ai/api/v2',
-        'https://supermemory.ai/api/v3'
-    ];
-    
-    for (const apiUrl of apiVersions) {
-        try {
-            const response = await axios.get(`${apiUrl}/memories/list?limit=1`, { headers, timeout: 3000 });
-            console.log(`✅ ${apiUrl}: Working! Status ${response.status}`);
-            if (response.data) {
-                console.log(`   Response: ${JSON.stringify(response.data).substring(0, 200)}...`);
-            }
-        } catch (error) {
-            console.log(`❌ ${apiUrl}: ${error.response?.status || 'TIMEOUT'} - ${error.response?.data?.error || error.message}`);
-        }
-    }
-    
-    // Test 4: Check environment variables
-    console.log('\n🔧 Environment Variables Check:');
-    console.log('SUPERMEMORY_BASE_URL:', process.env.SUPERMEMORY_BASE_URL || 'NOT SET (using default)');
-    console.log('SUPERMEMORY_API_KEY length:', process.env.SUPERMEMORY_API_KEY?.length || 0);
-    console.log('NODE_TLS_REJECT_UNAUTHORIZED:', process.env.NODE_TLS_REJECT_UNAUTHORIZED);
-    
-    console.log('\n=== DEBUGGING COMPLETED ===');
+    console.log('Checking OpenRouter config within AIProcessor...');
+    assert.deepStrictEqual(aiProcessor.openRouterConfig, config.apis.openrouter, 'AIProcessor openRouterConfig should match production config');
+    console.log('✔️ AIProcessor openRouterConfig is correctly loaded.');
+
+    console.log('\n✅ OpenRouter API Configuration Test Passed!\n');
+
+} catch (error) {
+    console.error('\n❌ OpenRouter API Configuration Test Failed:');
+    console.error(error);
+    process.exit(1);
 }
-
-if (require.main === module) {
-    debugSupermemoryAPI();
-}
-
-module.exports = { debugSupermemoryAPI };

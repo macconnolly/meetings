@@ -10,12 +10,29 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config({ path: path.resolve(__dirname, './.env') });
 
 const TESTS = {
+    'unit:schema': {
+        command: 'npx mocha test/unit/schema.test.js',
+        description: 'Run unit tests for the Schema Validation'
+    },
+    'unit:context-assembler': {
+        command: 'npx mocha test/unit/context-assembler.test.js',
+        description: 'Run unit tests for the ContextAssembler'
+    },
+    'integration:context-assembler-e2e': {
+        command: 'npx mocha test/integration/context-assembler-e2e.test.js',
+        description: 'Run end-to-end tests for the ContextAssembler with real data'
+    },
     // Integration tests
     integration: {
         command: 'node test/integration/pipeline.test.js',
         description: 'Run main pipeline integration test'
+    },
+    'integration:comprehensive': {
+        command: 'npx mocha test/integration/comprehensive-pipeline.test.js',
+        description: 'Run the full end-to-end comprehensive pipeline test'
     },
     'integration:eml': {
         command: 'node test/integration/eml-processing.test.js',
@@ -87,7 +104,8 @@ function runTest(testName, args = []) {
         const command = test.command + (args.length > 0 ? ' ' + args.join(' ') : '');
         execSync(command, { 
             stdio: 'inherit',
-            cwd: __dirname
+            cwd: __dirname,
+            env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: '0' }
         });
         
         console.log('-'.repeat(40));
@@ -180,3 +198,4 @@ if (require.main === module) {
 }
 
 module.exports = { runTest, TESTS };
+console.log('Current process.env.PATH:', process.env.PATH);

@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const emlFormat = require('eml-format');
 
 class EmailProcessor {
     constructor(config) {
@@ -27,43 +28,33 @@ class EmailProcessor {
     }
 
     async parseEmlFile(filePath) {
-        try {
-            const emailContent = await fs.readFile(filePath, 'utf-8');
-            
-            // Extract subject
-            const subjectMatch = emailContent.match(/^Subject:\s*(.*)$/m);
-            const subject = subjectMatch ? subjectMatch[1].trim() : 'No Subject';
-            
-            // Find the transcript content - look for "Transcript:" marker
-            let transcript = '';
-            const transcriptMatch = emailContent.match(/Transcript:\s*([\s\S]*?)$/m);
-            
-            if (transcriptMatch) {
-                // Extract the actual transcript content
-                transcript = transcriptMatch[1].trim();
-            } else {
-                // Fallback: extract content after Content-Type: text/plain
-                const plainTextMatch = emailContent.match(/Content-Type:\s*text\/plain[^]*?\n\n([\s\S]*?)(?=\n----_|$)/);
-                if (plainTextMatch) {
-                    transcript = plainTextMatch[1]
-                        .replace(/=\r?\n/g, '') // Remove quoted-printable line breaks
-                        .replace(/=([0-9A-F]{2})/g, (match, hex) => String.fromCharCode(parseInt(hex, 16))) // Decode quoted-printable
-                        .trim();
-                }
-            }
-            
-            // Format as a structured transcript with metadata
-            const formattedTranscript = `Meeting: ${subject}\n\n${transcript}`;
-            
-            console.log(`Successfully parsed EML file: ${filePath}`);
-            console.log(`Subject: ${subject}`);
-            console.log(`Transcript length: ${transcript.length} characters`);
-            
-            return formattedTranscript;
-        } catch (error) {
-            console.error(`Error parsing EML file ${filePath}:`, error);
-            throw error;
-        }
+        return new Promise((resolve, reject) => {
+            fs.readFile(filePath, 'utf-8')
+                .then(emlContent => {
+                    emlFormat.read(emlContent, (error, data) => {
+                        if (error) {
+                            console.error(`Error parsing EML file ${filePath}:`, error);
+                            return reject(error);
+                        }
+
+                        const subject = data.subject || 'No Subject';
+                        let transcript = '';
+                        if (data.text) {
+                            transcript = data.text.trim();
+                        }
+
+                        const formattedTranscript = `Meeting: ${subject}\n\n${transcript}`;
+                        console.log(`Successfully parsed EML file: ${filePath}`);
+                        console.log(`Subject: ${subject}`);
+                        console.log(`Transcript length: ${transcript.length} characters`);
+                        resolve(formattedTranscript);
+                    });
+                })
+                .catch(error => {
+                    console.error(`Error reading EML file ${filePath}:`, error);
+                    reject(error);
+                });
+        });
     }
 
     async sendEmail(emailDetails) {

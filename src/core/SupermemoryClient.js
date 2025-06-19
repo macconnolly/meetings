@@ -3,7 +3,11 @@ const axios = require('axios');
 class SupermemoryClient {
     constructor(config = {}) {
         const supermemoryConfig = config.apis?.supermemory || {};
-        this.baseURL = supermemoryConfig.baseURL || process.env.SUPERMEMORY_BASE_URL || 'https://api.supermemory.ai/v3';
+        let baseURL = supermemoryConfig.baseURL || process.env.SUPERMEMORY_BASE_URL || 'https://api.supermemory.ai/v3';
+        if (baseURL.endsWith('/')) {
+            baseURL = baseURL.slice(0, -1);
+        }
+        this.baseURL = baseURL;
         this.apiKey = process.env.SUPERMEMORY_API_KEY;
         this.timeout = supermemoryConfig.timeout || 30000;
         this.retryAttempts = supermemoryConfig.retryAttempts || 3;
@@ -89,7 +93,10 @@ class SupermemoryClient {
                 }
             }
             throw new Error("Failed to create memory with Supermemory API after multiple retries.");
-        }    }    async listMemories(filters = {}) {
+        }
+    }
+
+    async listMemories(filters = {}) {
         console.log("🔍 Listing memories with filters:", JSON.stringify(filters));
         console.log("🌐 API Endpoint:", `${this.baseURL}/memories/list`);
         
@@ -154,6 +161,82 @@ class SupermemoryClient {
         }
     }
 
+    async searchMemories(query) {
+        this.logger.info('Searching memories with query:', JSON.stringify(query, null, 2));
+        if (!this.apiKey) {
+            this.logger.warn('Supermemory API key not set. Returning mock search results.');
+            return { results: [] };
+        }
+
+        const headers = {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Always include conversation_id in the payload
+        const { containerTags, filters, ...restOfQuery } = query;
+        const searchPayload = {
+            ...restOfQuery,
+            conversation_id: query.conversation_id || `search-${Date.now()}`
+        };
+
+        if (containerTags) {
+            searchPayload.tags = containerTags;
+        }
+
+        if (filters) {
+            Object.assign(searchPayload, filters);
+        }
+
+        // Fallback: ensure conversation_id is present
+        if (!searchPayload.conversation_id) {
+            searchPayload.conversation_id = `search-${Date.now()}`;
+        }
+
+        try {
+            this.logger.info('Sending search payload:', JSON.stringify(searchPayload, null, 2));
+            const response = await axios.post(`${this.baseURL}/memories/search`, searchPayload, {
+                headers: headers,
+                timeout: this.timeout
+            });
+            this.logger.info(`Search completed successfully with ${response.data.results?.length || 0} results.`);
+            return response.data;
+        } catch (error) {
+            const errorMessage = error.response ? JSON.stringify(error.response.data, null, 2) : error.message;
+            this.logger.error('Error searching memories with Supermemory API:', errorMessage);
+            throw new Error('Failed to search memories with Supermemory API.');
+        }
+    }
+
+    /**
+   * Search memories using the new /v3/search endpoint (advanced filtering)
+   * @param {Object} payload - Search payload (see OpenAPI spec)
+   * @returns {Promise<Object>} Search results
+   */
+  async searchMemoriesV3(payload) {
+    this.logger.info('Searching memories with /v3/search:', JSON.stringify(payload, null, 2));
+    if (!this.apiKey) {
+      this.logger.warn('Supermemory API key not set. Returning mock search results.');
+      return { results: [] };
+    }
+    const headers = {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json'
+    };
+    try {
+      const response = await axios.post(`${this.baseURL}/search`, payload, {
+        headers: headers,
+        timeout: this.timeout
+      });
+      this.logger.info(`V3 Search completed successfully with ${response.data.results?.length || 0} results.`);
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response ? JSON.stringify(error.response.data, null, 2) : error.message;
+      this.logger.error('Error searching memories with /v3/search:', errorMessage);
+      throw new Error('Failed to search memories with /v3/search.');
+    }
+  }
+
     async _findMemoryByCustomId(customId) {
         this.logger.log(`Finding memory by customId using list endpoint: ${customId}`);
         
@@ -206,6 +289,35 @@ class SupermemoryClient {
             throw new Error(`API error while updating memory: ${documentId}`);
         }
     }
+
+    /**
+   * List memories using the /v3/memories/list endpoint (advanced, paginated)
+   * @param {Object} params - List params (see OpenAPI spec)
+   * @returns {Promise<Object>} List results
+   */
+  async listMemoriesV3(params = {}) {
+    this.logger.info('Listing memories with /v3/memories/list:', JSON.stringify(params, null, 2));
+    if (!this.apiKey) {
+      this.logger.warn('Supermemory API key not set. Returning mock list results.');
+      return { memories: [] };
+    }
+    const headers = {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json'
+    };
+    try {
+      const response = await axios.post(`${this.baseURL}/memories/list`, params, {
+        headers: headers,
+        timeout: this.timeout
+      });
+      this.logger.info(`V3 List completed successfully with ${response.data.memories?.length || 0} results.`);
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response ? JSON.stringify(error.response.data, null, 2) : error.message;
+      this.logger.error('Error listing memories with /v3/memories/list:', errorMessage);
+      throw new Error('Failed to list memories with /v3/memories/list.');
+    }
+  }
 }
 
 module.exports = { SupermemoryClient };
