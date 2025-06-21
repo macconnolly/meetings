@@ -4,27 +4,40 @@ import os
 from typing import List, Dict, Any
 import logging
 
-import weaviate
-from neo4j import GraphDatabase
+try:
+    import weaviate
+except Exception:  # pragma: no cover - optional for tests
+    weaviate = None  # type: ignore
+try:
+    from neo4j import GraphDatabase
+except Exception:  # pragma: no cover - optional for tests
+    GraphDatabase = None  # type: ignore
 
-from ..models.temporal_memory import TemporalMemoryChunk
+from ..models.memory_objects import MemoryChunk
 
 
 class DualStorageManager:
     """Store data in both Weaviate and Neo4j."""
 
     def __init__(self, weaviate_url: str, neo4j_uri: str, neo4j_auth: tuple) -> None:
-        self.weaviate_client = weaviate.Client(
-            url=weaviate_url,
-            additional_headers={"X-OpenAI-Api-Key": os.getenv("OPENAI_API_KEY", "")},
-        )
-        self.neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=neo4j_auth)
+        if weaviate:
+            self.weaviate_client = weaviate.Client(
+                url=weaviate_url,
+                additional_headers={"X-OpenAI-Api-Key": os.getenv("OPENAI_API_KEY", "")},
+            )
+        else:
+            self.weaviate_client = None
+        if GraphDatabase:
+            self.neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=neo4j_auth)
+        else:
+            self.neo4j_driver = None
 
     def close(self) -> None:
-        self.neo4j_driver.close()
+        if self.neo4j_driver:
+            self.neo4j_driver.close()
 
     def store_meeting(
-        self, meeting_metadata: Dict[str, Any], chunks: List[TemporalMemoryChunk]
+        self, meeting_metadata: Dict[str, Any], chunks: List[MemoryChunk]
     ) -> bool:
         """Store meeting data in both databases."""
         try:
@@ -36,8 +49,10 @@ class DualStorageManager:
             return False
 
     def _store_in_weaviate(
-        self, meeting_metadata: Dict[str, Any], chunks: List[TemporalMemoryChunk]
+        self, meeting_metadata: Dict[str, Any], chunks: List[MemoryChunk]
     ) -> None:
+        if not self.weaviate_client:
+            return
         meeting_object = {
             "meetingId": meeting_metadata["meeting_id"],
             "title": meeting_metadata["title"],
@@ -71,8 +86,10 @@ class DualStorageManager:
                 )
 
     def _store_in_neo4j(
-        self, meeting_metadata: Dict[str, Any], chunks: List[TemporalMemoryChunk]
+        self, meeting_metadata: Dict[str, Any], chunks: List[MemoryChunk]
     ) -> None:
+        if not self.neo4j_driver:
+            return
         with self.neo4j_driver.session() as session:
             session.write_transaction(self._create_meeting_tx, meeting_metadata)
             for chunk in chunks:
@@ -95,7 +112,8 @@ class DualStorageManager:
 
     @staticmethod
     def _create_chunk_tx(
-        tx, chunk: TemporalMemoryChunk, meeting_metadata: Dict[str, Any]
+        tx, chunk: MemoryChunk, meeting_metadata: Dict[str, Any]
+    ) -> None:
         query = (
             "MERGE (c:Chunk {chunkId: $cid}) "
             "SET c.content=$content, c.speaker=$speaker, c.timestamp=datetime($ts), "
@@ -123,4 +141,4 @@ class DualStorageManager:
             importance_score=chunk.importance_score,
             mid=meeting_metadata["meeting_id"],
         )
-        )
+
