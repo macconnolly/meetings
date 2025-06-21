@@ -25,6 +25,7 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] **Task 12: LLM Orchestration**
 - [ ] **Task 13: Response Assembly**
 - [ ] **Task 14: API Layer**
+- [ ] **Task 15: Participant Expertise Modeling**
 
 ## Testing Strategy
 - [ ] **Integration Test Suite**
@@ -54,3 +55,4 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] Confidence scoring is accurate
 - [ ] Response quality meets requirements
 - [ ] System handles edge cases gracefully
+- [ ] Expertise profiles influence scoring

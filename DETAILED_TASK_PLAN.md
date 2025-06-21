@@ -304,10 +304,19 @@ class ExpertiseAnalyzer:
         # Create/update (Person)-[:EXPERT_IN {confidence, category, last_updated}]->(Topic)
         # Track expertise changes over time
         # Implementation needed
-        
+
     async def _track_expertise_evolution(self, person: str, topic: str) -> Dict:
         """Track how person's expertise in topic has evolved"""
         # Implementation needed
+```
+
+Additional utility class:
+
+```python
+class ParticipantExpertiseModeler:
+    def model_expertise(self, chunks: List[TemporalMemoryChunk]) -> Dict[str, Dict[str, float]]:
+        """Build expertise profiles weighted by contribution quality."""
+        ...
 ```
 
 **Tasks**:
