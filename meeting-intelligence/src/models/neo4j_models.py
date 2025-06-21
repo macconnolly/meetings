@@ -10,4 +10,4 @@ class Relation(str, Enum):
 
 
 def create_meeting_node(meeting_id: str) -> str:
-    return f"MERGE (m:Meeting {{ id: '{meeting_id}' }})"
+    return f"MERGE (m:Meeting { '{ id: \"' + meeting_id + '\"' } })"
