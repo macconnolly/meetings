@@ -21,6 +21,13 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] **Task 10: Context Builder v1** *(Requirements §2.3.2)*
 
 ## Phase 3: Advanced Capabilities (Weeks 9-12)
+
+- [ ] **Task 11: Iterative Query Refinement**
+- [ ] **Task 12: LLM Orchestration**
+- [ ] **Task 13: Response Assembly**
+- [ ] **Task 14: API Layer**
+- [ ] **Task 15: Participant Expertise Modeling**
+
 - [ ] **Task 11: Iterative Query Refinement** *(Requirements §2.3.2)*
 - [ ] **Task 12: LLM Orchestration** *(Requirements §4.3)*
 - [ ] **Task 13: Response Assembly** *(Requirements §2.4.2)*
@@ -44,6 +51,7 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] **Task 29: Advanced Visualization** *(Requirements §5.5)*
 - [ ] **Task 30: Predictive Analytics** *(Requirements §5.5)*
 - [ ] **Task 31: Document Generation** *(Requirements §5.5)*
+
 
 ## Testing Strategy
 - [ ] **Integration Test Suite** *(Requirements §6.1)*
@@ -73,3 +81,4 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] Confidence scoring is accurate
 - [ ] Response quality meets requirements
 - [ ] System handles edge cases gracefully
+- [ ] Expertise profiles influence scoring

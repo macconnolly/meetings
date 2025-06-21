@@ -86,6 +86,7 @@
    # Nightly batch: analyze speaking patterns by meeting category
    # Create (Person)-[:EXPERT_IN {confidence, category}]->(Topic)
    # Track expertise evolution over time
+   # Model participant expertise to weight future contributions
    ```
 
 ### Phase 4: Predictive Features
