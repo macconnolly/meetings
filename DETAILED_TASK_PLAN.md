@@ -131,6 +131,27 @@ class TemporalDateCalculator:
 4. Test with various reference dates
 5. Integrate with TemporalExtractor
 
+### Phase 2.4: Unresolved Thread Tracking
+
+**File**: `/meeting-intelligence/src/analysis/unresolved_thread_tracker.py`
+
+```python
+class UnresolvedThreadTracker:
+    def __init__(self, neo4j: Neo4jClient) -> None:
+        self.neo4j_driver = neo4j.driver
+
+    def track_unresolved_threads(self, chunks: List[TemporalMemoryChunk]) -> Dict[str, List[Dict]]:
+        """Identify unanswered questions and unresolved issues"""
+        # Implementation described in requirements
+```
+
+**Tasks**:
+1. Implement `_find_answer_for_question` to match answers with questions
+2. Implement `_check_future_meetings` using Neo4j queries
+3. Aggregate unresolved items by days outstanding
+4. Integrate tracker results into reports
+5. Add tests covering unanswered question detection
+
 ### Phase 3.1: DualStorageManager (CRITICAL - v3 Core)
 
 **File**: `/meeting-intelligence/src/storage/dual_storage_manager.py`

@@ -95,7 +95,10 @@ class DualStorageManager:
 
     @staticmethod
     def _create_chunk_tx(
-        tx, chunk: TemporalMemoryChunk, meeting_metadata: Dict[str, Any]
+        tx,
+        chunk: TemporalMemoryChunk,
+        meeting_metadata: Dict[str, Any],
+    ) -> None:
         query = (
             "MERGE (c:Chunk {chunkId: $cid}) "
             "SET c.content=$content, c.speaker=$speaker, c.timestamp=datetime($ts), "
@@ -123,4 +126,4 @@ class DualStorageManager:
             importance_score=chunk.importance_score,
             mid=meeting_metadata["meeting_id"],
         )
-        )
+
