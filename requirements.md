@@ -482,6 +482,15 @@ class ContextScorer:
         return sum(scores[k] * self.weights[k] for k in scores)
 ```
 
+#### 2.3.4 Participant Expertise Modeling
+
+```python
+class ParticipantExpertiseModeler:
+    def model_expertise(self, chunks: List[TemporalMemoryChunk]) -> Dict[str, Dict[str, float]]:
+        """Build expertise profiles for participants based on their contributions"""
+        # Weight contributions by quality and recency
+```
+
 ### 2.4 Context Assembly & Response Generation
 
 #### 2.4.1 Final Context Structure
@@ -822,6 +831,7 @@ COST_OPTIMIZATION = {
 - Complex traversal algorithms
 - Confidence scoring system
 - Gap analysis and risk identification
+- Participant expertise modeling
 
 **Success Criteria:**
 - Handle complex multi-hop queries
