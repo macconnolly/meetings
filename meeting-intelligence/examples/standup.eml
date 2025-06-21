@@ -1,0 +1,10 @@
+From: alice@example.com
+To: team@example.com
+Subject: Weekly Standup
+Date: Tue, 1 Jul 2025 10:00:00 -0000
+MIME-Version: 1.0
+Content-Type: text/plain
+
+Transcript:
+0:00 Alice: Welcome to the weekly standup.
+0:05 Bob: We completed the API integration.
