@@ -12,15 +12,15 @@ This guide helps you implement the Meeting Intelligence System using Codex break
 
 **First Prompt to Codex:**
 ```
-Create a new Python project for a Meeting Intelligence System with this structure:
+Create a new Python project for a Temporal Meeting Intelligence System with this structure:
 
-meeting-intelligence/
+temporal-meeting-intelligence/
 ├── README.md
 ├── requirements.txt
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
-├── meeting-intelligence-requirements.md [I'll provide this file]
+├── temporal-meeting-intelligence-requirements.md [I'll provide this file]
 ├── src/
 │   ├── __init__.py
 │   ├── models/
@@ -68,7 +68,7 @@ Include proper environment variables, volume mounts, and networking. Also create
 
 **Prompt:**
 ```
-Looking at meeting-intelligence-requirements.md sections 2.1.3 and 2.2, implement:
+Looking at temporal-meeting-intelligence-requirements.md sections 2.1.3 and 2.2, implement:
 
 1. In models/memory_objects.py:
    - Create the MemoryObject Pydantic model with all fields from the schema
@@ -420,7 +420,7 @@ This query is taking too long. Can you:
 ## Next Steps
 
 1. Save this guide as `claude-code-guide.md` in your project
-2. Save the requirements as `meeting-intelligence-requirements.md`
+2. Save the requirements as `temporal-meeting-intelligence-requirements.md`
 3. Start with the Project Initialization prompt
 4. Work through Phase 1 tasks sequentially
 5. Test thoroughly before moving to Phase 2
