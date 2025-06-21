@@ -84,9 +84,10 @@ class ImplicitReferenceResolver:
 **Tasks**:
 1. Implement pattern extraction for implicit references
 2. Build candidate finding logic
-3. Add confidence decay calculation
+3. Add confidence decay calculation (implemented)
 4. Create semantic similarity scoring
-5. Test with real meeting examples
+5. Integrate resolver into extraction pipeline
+6. Test with real meeting examples
 
 ### Phase 2.3: Date Calculation Implementation (USER REQUIREMENT)
 

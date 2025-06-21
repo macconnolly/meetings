@@ -9,6 +9,7 @@ The Meeting Intelligence System is a sophisticated temporal knowledge platform t
 - **Contextual Awareness**: Understands implicit needs (e.g., "update the date" based on deadline changes)
 - **Iterative Refinement**: LLM-driven queries that progressively build comprehensive context
 - **Dual-Store Architecture**: Combines semantic search (Weaviate) with relationship tracking (Neo4j)
+- **Implicit Reference Resolution**: Maps phrases like "the original plan" to the most recent relevant chunk using confidence decay
 
 ### Business Value
 - Reduce meeting preparation time from hours to minutes
@@ -809,6 +810,7 @@ COST_OPTIMIZATION = {
 - Graph relationship building
 - Query orchestration engine v1
 - Iterative context building
+- Implicit reference resolution with confidence decay
 
 **Success Criteria:**
 - Extract 8-15 quality memories per meeting

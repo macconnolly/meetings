@@ -19,12 +19,13 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] **Task 8: Advanced Memory Extraction**
 - [ ] **Task 9: Query Orchestrator Foundation**
 - [ ] **Task 10: Context Builder v1**
+- [ ] **Task 11: Implicit Reference Resolution**
 
 ## Phase 3: Advanced Capabilities (Weeks 9-12)
-- [ ] **Task 11: Iterative Query Refinement**
-- [ ] **Task 12: LLM Orchestration**
-- [ ] **Task 13: Response Assembly**
-- [ ] **Task 14: API Layer**
+- [ ] **Task 12: Iterative Query Refinement**
+- [ ] **Task 13: LLM Orchestration**
+- [ ] **Task 14: Response Assembly**
+- [ ] **Task 15: API Layer**
 
 ## Testing Strategy
 - [ ] **Integration Test Suite**
