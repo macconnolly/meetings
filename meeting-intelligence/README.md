@@ -4,6 +4,7 @@ This project implements a Python-based Meeting Intelligence System. It processes
 
 The project is currently in its initialization phase. Future phases will add advanced extraction, storage and query capabilities based on the `meeting-intelligence-requirements.md` specifications.
 
+
 ## Configuration
 
 Runtime configuration is managed via a `.env` file loaded by `Settings`. The following variables are supported (all optional with sane defaults):
@@ -27,3 +28,13 @@ Runtime configuration is managed via a `.env` file loaded by `Settings`. The fol
 | `ENABLE_GRAPH_STORE` | Toggle usage of the graph store | `true` |
 
 Create a `.env` file based on `.env.example` and adjust values as needed.
+
+Example `.eml` files are located in the `examples/` directory. To ingest one of
+the samples using the pipeline run:
+
+```bash
+PYTHONPATH=meeting-intelligence python -m src.ingestion.pipeline meeting-intelligence/examples/standup.eml
+```
+
+The command parses the email, extracts memory chunks and stores them using the
+configured storage backends.
