@@ -7,16 +7,19 @@ import re
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except Exception:  # pragma: no cover - openai optional in tests
+    OpenAI = None  # type: ignore
 
-from ..models.temporal_memory import TemporalMemoryChunk
+from ..models.memory_objects import MemoryChunk
 
 
 class TemporalExtractor:
     """Extract temporally aware memory chunks from transcripts."""
 
     def __init__(self) -> None:
-        self.client = OpenAI()
+        self.client = OpenAI() if OpenAI else None
         self.extraction_prompt = """
 You are analyzing a meeting transcript to extract temporal memory chunks.
 
@@ -37,11 +40,11 @@ Return output as JSON with a `chunks` list.
         transcript: str,
         meeting_metadata: Dict[str, Any],
         historical_context: List[Dict[str, Any]],
-    ) -> List[TemporalMemoryChunk]:
+    ) -> List[MemoryChunk]:
         """Extract temporal chunks from a transcript."""
 
         sections = self._segment_transcript(transcript)
-        all_chunks: List[TemporalMemoryChunk] = []
+        all_chunks: List[MemoryChunk] = []
         for section in sections:
             chunks = self._extract_section_chunks(
                 section, meeting_metadata, historical_context
@@ -71,12 +74,15 @@ Return output as JSON with a `chunks` list.
         section: str,
         meeting_metadata: Dict[str, Any],
         historical_context: List[Dict[str, Any]],
-    ) -> List[TemporalMemoryChunk]:
+    ) -> List[MemoryChunk]:
         """Call the LLM to extract chunks for a section."""
         historical_topics = [
             f"{ctx.get('meeting_date')}: {', '.join(ctx.get('topics', []))}"
             for ctx in historical_context[-5:]
         ]
+        if not self.client:
+            return []
+
         response = self.client.chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[
@@ -110,7 +116,7 @@ Return output as JSON with a `chunks` list.
                 except Exception:
                     pass
 
-            chunk = TemporalMemoryChunk(
+            chunk = MemoryChunk(
                 chunk_id=f"{meeting_metadata['meeting_id']}_chunk_{idx}",
                 meeting_id=meeting_metadata["meeting_id"],
                 timestamp=chunk_timestamp,

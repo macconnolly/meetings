@@ -54,3 +54,10 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] Confidence scoring is accurate
 - [ ] Response quality meets requirements
 - [ ] System handles edge cases gracefully
+
+### Additional Cleanup
+- [ ] Merge duplicate models (`TemporalMemoryChunk` vs `MemoryChunk`)
+- [ ] Replace Node.js components with unified Python modules
+- [ ] Implement canonical query types in `TemporalQueryOrchestrator`
+- [ ] Add recursive enrichment, aggregation, and deduplication logic
+- [ ] Provide plug-and-play main entry point

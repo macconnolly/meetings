@@ -8,10 +8,19 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import numpy as np
+try:
+    import numpy as np
+except Exception:  # pragma: no cover - optional for tests
+    np = None
 
-from openai import AsyncOpenAI
-import anthropic
+try:
+    from openai import AsyncOpenAI
+except Exception:  # pragma: no cover - optional
+    AsyncOpenAI = None  # type: ignore
+try:
+    import anthropic
+except Exception:  # pragma: no cover - optional
+    anthropic = None
 
 from ..models.memory_objects import (
     MemoryChunk, MemoryType, InteractionType, 
@@ -62,8 +71,8 @@ class TemporalExtractor:
     """Advanced temporal-aware memory extraction with unique capabilities."""
     
     def __init__(self, openai_api_key: Optional[str] = None, anthropic_api_key: Optional[str] = None):
-        self.openai_client = AsyncOpenAI(api_key=openai_api_key) if openai_api_key else None
-        self.anthropic_client = anthropic.AsyncAnthropic(api_key=anthropic_api_key) if anthropic_api_key else None
+        self.openai_client = AsyncOpenAI(api_key=openai_api_key) if AsyncOpenAI and openai_api_key else None
+        self.anthropic_client = anthropic.AsyncAnthropic(api_key=anthropic_api_key) if anthropic and anthropic_api_key else None
         
         # Caches for efficiency
         self.semantic_cache = {}
