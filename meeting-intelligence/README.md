@@ -2,16 +2,13 @@
 
 This project implements a Python-based Meeting Intelligence System. It processes meeting emails, extracts structured "memory" objects and stores them in vector and graph databases. The system is designed to run on Python **3.11+** and uses type hints throughout the codebase.
 
-The project is currently in its initialization phase. Future phases will add advanced extraction, storage and query capabilities based on the `meeting-intelligence-requirements.md` specifications.
 
-## Usage
+The project now includes a minimal implementation of the **Temporal Meeting Intelligence System**. The `temporal` package provides:
 
-Example `.eml` files are located in the `examples/` directory. To ingest one of
-the samples using the pipeline run:
+- `TemporalExtractor` – extracts temporally aware memory chunks using OpenAI.
+- `DualStorageManager` – stores meetings and chunks in both Weaviate and Neo4j.
+- `TemporalQueryProcessor` – performs simple temporal queries.
+- `api.py` – FastAPI application exposing ingestion and query endpoints.
+- `neo4j_schema.py` – applies the Neo4j graph constraints described in the requirements.
 
-```bash
-PYTHONPATH=meeting-intelligence python -m src.ingestion.pipeline meeting-intelligence/examples/standup.eml
-```
-
-The command parses the email, extracts memory chunks and stores them using the
-configured storage backends.
+This implementation is intentionally lightweight but demonstrates the core concepts described in the requirements.
