@@ -1,7 +1,5 @@
 version: '3.8'
 
-
-
 services:
   weaviate:
     image: semitechnologies/weaviate:1.24.10
