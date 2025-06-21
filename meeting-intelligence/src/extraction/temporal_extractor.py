@@ -102,10 +102,18 @@ Return output as JSON with a `chunks` list.
             return []
         chunks = []
         for idx, chunk_data in enumerate(data.get("chunks", [])):
+            # Try to extract timestamp from chunk_data, fallback to meeting_metadata["date"]
+            chunk_timestamp = meeting_metadata["date"]
+            if "timestamp" in chunk_data and chunk_data["timestamp"]:
+                try:
+                    chunk_timestamp = datetime.fromisoformat(chunk_data["timestamp"])
+                except Exception:
+                    pass
+
             chunk = TemporalMemoryChunk(
                 chunk_id=f"{meeting_metadata['meeting_id']}_chunk_{idx}",
                 meeting_id=meeting_metadata["meeting_id"],
-                timestamp=meeting_metadata["date"],
+                timestamp=chunk_timestamp,
                 speaker=chunk_data.get("speaker", ""),
                 addressed_to=chunk_data.get("addressed_to", []),
                 interaction_type=chunk_data.get("interaction_type", "discussion"),

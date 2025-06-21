@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import List, Dict, Any
+import logging
 
 import weaviate
 from neo4j import GraphDatabase
@@ -30,8 +31,8 @@ class DualStorageManager:
             self._store_in_weaviate(meeting_metadata, chunks)
             self._store_in_neo4j(meeting_metadata, chunks)
             return True
-        except Exception as exc:  # pragma: no cover - simple sample
-            print(f"Storage error: {exc}")
+        except (weaviate.exceptions.WeaviateBaseError, Exception) as exc:
+            logging.error(f"Storage error: {exc}", exc_info=True)
             return False
 
     def _store_in_weaviate(
@@ -95,10 +96,14 @@ class DualStorageManager:
     @staticmethod
     def _create_chunk_tx(
         tx, chunk: TemporalMemoryChunk, meeting_metadata: Dict[str, Any]
-    ) -> None:
         query = (
             "MERGE (c:Chunk {chunkId: $cid}) "
-            "SET c.content=$content, c.speaker=$speaker, c.timestamp=datetime($ts) "
+            "SET c.content=$content, c.speaker=$speaker, c.timestamp=datetime($ts), "
+            "c.addressedTo=$addressed_to, c.interactionType=$interaction_type, "
+            "c.fullContext=$full_context, c.structuredData=$structured_data, "
+            "c.temporalMarkers=$temporal_markers, c.topicsDiscussed=$topics_discussed, "
+            "c.entitiesMentioned=$entities_mentioned, c.versionInfo=$version_info, "
+            "c.importanceScore=$importance_score "
             "WITH c MATCH (m:Meeting {meetingId: $mid}) MERGE (c)-[:SPOKEN_IN]->(m)"
         )
         tx.run(
@@ -107,5 +112,15 @@ class DualStorageManager:
             content=chunk.content,
             speaker=chunk.speaker,
             ts=chunk.timestamp.isoformat(),
+            addressed_to=chunk.addressed_to,
+            interaction_type=chunk.interaction_type,
+            full_context=chunk.full_context,
+            structured_data=chunk.structured_data,
+            temporal_markers=chunk.temporal_markers,
+            topics_discussed=chunk.topics_discussed,
+            entities_mentioned=chunk.entities_mentioned,
+            version_info=chunk.version_info,
+            importance_score=chunk.importance_score,
             mid=meeting_metadata["meeting_id"],
+        )
         )
