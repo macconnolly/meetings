@@ -9,6 +9,8 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 ## Phase 1: Foundation (Weeks 1-4)
 - [ ] **Task 1: Data Models**
 - [ ] **Task 2: Storage Clients**
+  - [ ] Flesh out `WeaviateClient` with connection management, CRUD methods, vector and hybrid search, and retries
+  - [ ] Flesh out `Neo4jClient` with connection pooling, CRUD, relationship management, and 3-hop traversal support
 - [ ] **Task 3: Email Parser**
 - [ ] **Task 4: Basic Memory Factory**
 - [ ] **Task 5: Configuration Management**
