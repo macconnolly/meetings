@@ -19,6 +19,7 @@ This tracker outlines the tasks from [claude-code-guide.md](./claude-code-guide.
 - [ ] **Task 8: Advanced Memory Extraction**
 - [ ] **Task 9: Query Orchestrator Foundation**
 - [ ] **Task 10: Context Builder v1**
+- [ ] **Task 10b: Unresolved Thread Tracker**
 
 ## Phase 3: Advanced Capabilities (Weeks 9-12)
 - [ ] **Task 11: Iterative Query Refinement**

@@ -482,6 +482,20 @@ class ContextScorer:
         return sum(scores[k] * self.weights[k] for k in scores)
 ```
 
+#### 2.3.4 Unresolved Thread Tracking
+
+Track open questions and unresolved issues across meetings so important items are not forgotten.
+
+```python
+class UnresolvedThreadTracker:
+    def __init__(self, neo4j_driver):
+        self.neo4j_driver = neo4j_driver
+
+    def track_unresolved_threads(self, chunks: List[TemporalMemoryChunk]) -> Dict[str, List[Dict]]:
+        """Identify questions/issues that were never resolved"""
+        # Implementation inspects chunks and checks Neo4j for answers
+```
+
 ### 2.4 Context Assembly & Response Generation
 
 #### 2.4.1 Final Context Structure
@@ -809,6 +823,7 @@ COST_OPTIMIZATION = {
 - Graph relationship building
 - Query orchestration engine v1
 - Iterative context building
+- Unresolved thread tracking across meetings
 
 **Success Criteria:**
 - Extract 8-15 quality memories per meeting
